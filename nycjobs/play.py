@@ -1,30 +1,53 @@
+from itertools import groupby
 import json
+import pprint
 import requests
+import sys
 
-def salary_level(jobs):
-    """(list) -> list of tuples of `minimum qual requirerments`,
-    `salary range from`, `salary range to`"""
-    return[(job['minimum_qual_requirements'],
-            job['salary_range_from'],
-            job['salary_range_to'])
-            for job in jobs if 'minimum_qual_requirements' in job]
+class Job:
 
-def salary_level_url(url):
-    """(url) -> list of tuples"""
-    return salary_level(requests.get(url).json())
+    def __init__(self, min_salary, max_salary, business_title, job_id):
+        self.min_salary = min_salary
+        self.max_salary = max_salary
+        self.business_title = business_title
+        self.job_id = job_id
 
-def render(salaries):
-    """(list of tuples) -> None"""
-    for qual, range_from, range_to in salaries:
-        print(qual, range_from, range_to)
-        print()
+    def __repr__(self):
+        return "Job({}, {}, {}, {})".format(
+            repr(self.min_salary),
+            repr(self.max_salary),
+            repr(self.business_title),
+            repr(self.job_id))
 
-def render_url(url):
-    """(url) -> None"""
-    render(salary_level_url(url))
+    def __str__(self):
+        return self.business_title
+
+def make_jobs(jobs):
+    """(list of dicts) -> list of Jobs"""
+    return [Job(job['salary_range_from'],
+                job['salary_range_to'],
+                job['business_title'],
+                job['job_id']) for job in jobs]
+
+def render(jobs):
+    """(list of job instances) -> NoneType"""
+    print('\n\n'.join((job) for job in jobs))
 
 if __name__== '__main__':
-    url='https://data.cityofnewyork.us/resource/kpav-sd4t.json'
-    data = requests.get(url).json()
-    render_url(url)
 
+    if "--fetch" in sys.argv:
+        url = 'https://data.cityofnewyork.us/resource/kpav-sd4t.json'
+        data = requests.get(url)
+        with open("jobs.js", "w") as f:
+            f.write(data.text)
+
+    with open("jobs.js") as f:
+        data = f.read()
+
+    jobs = make_jobs(json.loads(data))
+
+    print(len(jobs), "jobs found")
+
+    # Remove duplicates.
+    uniq = [next(xs) for _, xs in groupby(jobs, lambda x: x.job_id)]
+    print(len(uniq), "after deduping")
